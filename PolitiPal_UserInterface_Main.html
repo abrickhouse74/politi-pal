@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search for Politicians</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .form-container {
+            max-width: 400px;
+            margin: auto;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        input[type="text"], input[type="submit"] {
+            width: 100%;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+        #result {
+            margin-top: 20px;
+            font-weight: bold;
+        }
+        .circle-button-container {
+            text-align: center;
+            margin-top: 20px;
+            position: relative;
+            width: 600px;
+            height: 600px;
+            margin: 0 auto;
+            background-size: cover;
+            background-position: center;
+            background-image: none; /* Hide image initially */
+        }
+        .circle-button {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background-color: blue;
+            border: none;
+            color: white;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1;
+        }
+        .small-circle {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            background-color: blue;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-size: 10px;
+        }
+        .politician-name {
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 12px;
+            text-align: center;
+            width: 100%;
+            color: black; /* Set text color to solid black */
+            text-indent: 20px; /* Indent the text */
+        }
+        .town-input {
+            width: 80px;
+            height: 30px;
+            text-align: center;
+            border: 2px solid blue;
+            border-radius: 5px;
+        }
+        .inner-button {
+            margin-top: 5px;
+            width: 80px;
+            height: 30px;
+            background-color: white;
+            color: blue;
+            border: 2px solid blue;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .speech-bubble {
+            position: absolute;
+            background: #f0f0f0;
+            border: 1px solid #ccc;
+            padding: 10px;
+            border-radius: 10px;
+            max-width: 200px;
+            font-size: 12px;
+            color: #333;
+            z-index: 2;
+        }
+        .speech-bubble::after {
+            content: '';
+            position: absolute;
+            border: 10px solid transparent;
+            border-top-color: #f0f0f0;
+            border-bottom: 0;
+            border-left: 0;
+            margin-left: -5px;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+    </style>
+</head>
+<body>
+
+<div class="form-container">
+    <h1>Search for Politicians</h1>
+    <form id="searchForm" method="POST" action="search.php">
+        <div class="form-group">
+            <label for="generalSearch">General Search:</label>
+            <input type="text" id="generalSearch" name="generalSearch" placeholder="Enter politician name">
+        </div>
+        <input type="submit" value="Search">
+    </form>
+    <div id="result"></div>
+    <div class="circle-button-container" id="circleContainer">
+        <div class="circle-button" id="circleButton">
+            <input type="text" id="circleTownInput" class="town-input" placeholder="Town">
+            <button class="inner-button" id="innerSubmit">Submit</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Form validation and AJAX submission
+    document.getElementById('searchForm').addEventListener('submit', function(event) {
+        event.preventDefault();
+        const searchInput = document.getElementById('generalSearch').value;
+        if (!searchInput) {
+            alert('Please enter a name to search.');
+            return;
+        }
+        fetch('search.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `generalSearch=${encodeURIComponent(searchInput)}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            let resultHTML = '';
+            if (data.length > 0) {
+                resultHTML = '<ul>';
+                data.forEach(politician => {
+                    resultHTML += `<li>Name: ${politician.name} - Town: ${politician.town} - State: ${politician.state} - Links: ${politician.link}</li>`;
+                });
+                resultHTML += '</ul>';
+            } else {
+                resultHTML = 'No results found.';
+            }
+            document.getElementById('result').innerHTML = resultHTML;
+        });
+    });
+
+    let iteration = 0; // Track the number of iterations (local or state politicians displayed)
+    const innerSubmit = document.getElementById('innerSubmit');
+    const container = document.getElementById('circleContainer');
+    const townInput = document.getElementById('circleTownInput');
+
+    // Reset circles when a new town is input
+    townInput.addEventListener('input', function() {
+        iteration = 0;
+        clearCircles();
+    });
+
+    innerSubmit.addEventListener('click', function(event) {
+        event.preventDefault();
+        const town = townInput.value;
+        if (!town) {
+            alert('Please enter a town.');
+            return;
+        }
+        fetch(`search.php?town=${encodeURIComponent(town)}`)
+        .then(response => response.json())
+        .then(data => {
+            clearCircles(); // Clear previous circles before generating new ones
+            if (iteration === 0) {
+                container.style.backgroundImage = "url('https://www.google.com/maps/vt/data=zWcFu5KJz-IYT2DdDP-3ndx2h9lI0fjL3wug42qrkZIEbf3pEr8xIrJOtvjXAGu8yrV30CGdsZrGPjHtaPSke2kJgobRsRtMkQ8xNq2NKSJ2RhpL0XUhn4wT9QazjUj3rIslSMWoayORlgtbF8j5GnicHtQAAXA4miBlbXD3HCKlRxfAEqHlu5mzk-VVD1oMZQDtZOaYakHf6T7PuvdPLQ534Jq10a3b3pTD8dwBMKujtQ0Qx5Rye7EojYm4ZSTkFSjHi79nR6VOIuBc')";
+                generateCircles(data.local);
+                iteration++;
+            } else if (iteration === 1) {
+                container.style.backgroundImage = "url('https://upload.wikimedia.org/wikipedia/commons/thumb/3/35/Map_of_Pennsylvania_highlighting_Centre_County.svg/1200px-Map_of_Pennsylvania_highlighting_Centre_County.svg.png')";
+                generateCircles(data.state);
+                iteration++;
+            }
+        });
+    });
+
+    function clearCircles() {
+        while (container.firstChild && container.firstChild !== document.getElementById('circleButton')) {
+            container.removeChild(container.firstChild);
+        }
+    }
+
+    function generateCircles(politicians) {
+        const radius = 200; // Radius for circular positioning
+        const centerX = container.offsetWidth / 2;
+        const centerY = container.offsetHeight / 2;
+
+        politicians.forEach((politician, index) => {
+            const angle = (index / politicians.length) * 2 * Math.PI;
+            const x = centerX + radius * Math.cos(angle) - 20; // Adjust for circle size
+            const y = centerY + radius * Math.sin(angle) - 20;
+
+            const circle = document.createElement('div');
+            circle.className = 'small-circle';
+            circle.style.left = `${x}px`;
+            circle.style.top = `${y}px`;
+            circle.dataset.id = politician.id; // Store the ID for later use
+
+            circle.addEventListener('click', function() {
+                fetchPoliticianDetails(politician.id, circle);
+            });
+
+            const nameElement = document.createElement('div');
+            nameElement.className = 'politician-name';
+            nameElement.textContent = politician.name;
+            circle.appendChild(nameElement);
+
+            container.appendChild(circle);
+        });
+    }
+
+    function fetchPoliticianDetails(id, circle) {
+        fetch('search.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `circleId=${id}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            const existingBubble = document.querySelector('.speech-bubble');
+            if (existingBubble) existingBubble.remove();
+
+            const bubble = document.createElement('div');
+            bubble.className = 'speech-bubble';
+
+            if (data.length > 0) {
+                data.forEach(politician => {
+                    bubble.innerHTML = `
+                        Name: ${politician.name}<br>
+                        Town: ${politician.town}<br>
+                        State: ${politician.state}<br>
+                        Distance: ${politician.distance}<br>
+                        Title: ${politician.title}<br>
+                        Links: ${politician.link}<br>
+                    `;
+                });
+            } else {
+                bubble.innerHTML = 'No results found.';
+            }
+
+            document.body.appendChild(bubble);
+            const rect = circle.getBoundingClientRect();
+            bubble.style.left = `${rect.left + window.scrollX}px`;
+            bubble.style.top = `${rect.top + window.scrollY - bubble.offsetHeight - 10}px`;
+        });
+    }
+</script>
+
+</body>
+</html>
