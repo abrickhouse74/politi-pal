@@ -53,15 +53,18 @@ $message = '';
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     if (isset($_POST['add'])) {
-        $name = $_POST['name'];
-        $town = $_POST['town'];
-        $state = $_POST['state'];
-        $distance = $_POST['distance'];
-        $title = $_POST['title'];
-        $link = $_POST['link'];
+        $fields = array();
+        $values = array();
+        foreach ($_POST as $key => $value) {
+            if ($key != 'add' && $key != 'id') {
+                $fields[] = $key;
+                $values[] = "'" . $conn->real_escape_string($value) . "'";
+            }
+        }
+        $fields = implode(',', $fields);
+        $values = implode(',', $values);
 
-        $sql = "INSERT INTO Politicians (name, town, state, distance, title, link)
-                VALUES ('$name', '$town', '$state', '$distance', '$title', '$link')";
+        $sql = "INSERT INTO Politicians ($fields) VALUES ($values)";
 
         if ($conn->query($sql) === TRUE) {
             $message = "New record created successfully.";
@@ -70,14 +73,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
     } elseif (isset($_POST['update'])) {
         $id = $_POST['id'];
-        $name = $_POST['name'];
-        $town = $_POST['town'];
-        $state = $_POST['state'];
-        $distance = $_POST['distance'];
-        $title = $_POST['title'];
-        $link = $_POST['link'];
+        $updates = array();
+        foreach ($_POST as $key => $value) {
+            if ($key != 'update' && $key != 'id') {
+                $updates[] = "$key='" . $conn->real_escape_string($value) . "'";
+            }
+        }
+        $updates = implode(',', $updates);
 
-        $sql = "UPDATE Politicians SET name='$name', town='$town', state='$state', distance='$distance', title='$title', link='$link' WHERE id='$id'";
+        $sql = "UPDATE Politicians SET $updates WHERE id='$id'";
 
         if ($conn->query($sql) === TRUE) {
             $message = "Record updated successfully.";
@@ -94,6 +98,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         } else {
             $message = "Error deleting record: " . $conn->error;
         }
+    } elseif (isset($_POST['add_field'])) {
+        $newField = $_POST['new_field'];
+
+        $sql = "ALTER TABLE Politicians ADD $newField VARCHAR(255)";
+
+        if ($conn->query($sql) === TRUE) {
+            $message = "New field '$newField' added successfully.";
+        } else {
+            $message = "Error adding new field: " . $conn->error;
+        }
     }
 }
 
@@ -104,6 +118,15 @@ $politicians = [];
 if ($result->num_rows > 0) {
     while($row = $result->fetch_assoc()) {
         $politicians[] = $row;
+    }
+}
+
+// Fetch all fields
+$columns = [];
+$columnsResult = $conn->query("SHOW COLUMNS FROM Politicians");
+if ($columnsResult->num_rows > 0) {
+    while($row = $columnsResult->fetch_assoc()) {
+        $columns[] = $row['Field'];
     }
 }
 
@@ -132,7 +155,7 @@ $conn->close();
             display: block;
             margin-bottom: 5px;
         }
-        input[type="text"], input[type="submit"], select {
+        input[type="text"], select {
             width: 100%;
             padding: 10px;
             box-sizing: border-box;
@@ -150,13 +173,31 @@ $conn->close();
             text-align: left;
         }
         .button {
-            background-color: blue;
-            color: white;
-            padding: 10px 20px;
+            padding: 5px 10px;
             border: none;
             cursor: pointer;
             border-radius: 5px;
-            text-decoration: none;
+            margin-right: 5px;
+            margin-bottom: 5px;
+        }
+        .add-button {
+            background-color: blue;
+            color: white;
+        }
+        .update-button {
+            background-color: green;
+            color: white;
+        }
+        .delete-button {
+            background-color: red;
+            color: white;
+        }
+        .add-field-button {
+            background-color: purple;
+            color: white;
+            display: block;
+            margin: 20px auto;
+            width: fit-content;
         }
     </style>
     <script>
@@ -168,6 +209,30 @@ $conn->close();
             document.getElementById('distance').value = distance;
             document.getElementById('title').value = title;
             document.getElementById('link').value = link;
+            <?php foreach ($columns as $column): ?>
+            <?php if ($column != 'id' && $column != 'name' && $column != 'town' && $column != 'state' && $column != 'distance' && $column != 'title' && $column != 'link'): ?>
+            document.getElementById('<?php echo $column; ?>').value = arguments[<?php echo array_search($column, $columns); ?>];
+            <?php endif; ?>
+            <?php endforeach; ?>
+        }
+
+        function addField() {
+            var fieldName = prompt("Enter the name of the new field:");
+            if (fieldName) {
+                var form = document.createElement("form");
+                form.method = "POST";
+                var input = document.createElement("input");
+                input.type = "hidden";
+                input.name = "new_field";
+                input.value = fieldName;
+                form.appendChild(input);
+                var addFieldInput = document.createElement("input");
+                addFieldInput.type = "hidden";
+                addFieldInput.name = "add_field";
+                form.appendChild(addFieldInput);
+                document.body.appendChild(form);
+                form.submit();
+            }
         }
     </script>
 </head>
@@ -183,63 +248,53 @@ $conn->close();
             <label for="id">ID (for update/delete):</label>
             <input type="text" id="id" name="id" readonly>
         </div>
+        <?php foreach ($columns as $column): ?>
+        <?php if ($column != 'id'): ?>
         <div class="form-group">
-            <label for="name">Name:</label>
-            <input type="text" id="name" name="name" required>
+            <label for="<?php echo $column; ?>"><?php echo ucfirst($column); ?>:</label>
+            <input type="text" id="<?php echo $column; ?>" name="<?php echo $column; ?>" required>
         </div>
-        <div class="form-group">
-            <label for="town">Town:</label>
-            <input type="text" id="town" name="town" required>
-        </div>
-        <div class="form-group">
-            <label for="state">State:</label>
-            <input type="text" id="state" name="state" required>
-        </div>
-        <div class="form-group">
-            <label for="distance">Distance:</label>
-            <input type="text" id="distance" name="distance">
-        </div>
-        <div class="form-group">
-            <label for="title">Title:</label>
-            <input type="text" id="title" name="title">
-        </div>
-        <div class="form-group">
-            <label for="link">Link:</label>
-            <input type="text" id="link" name="link">
-        </div>
-        <input type="submit" name="add" value="Add" class="button">
-        <input type="submit" name="update" value="Update" class="button">
-        <input type="submit" name="delete" value="Delete" class="button">
+        <?php endif; ?>
+        <?php endforeach; ?>
+        <input type="submit" name="add" value="Add" class="button add-button">
+        <input type="submit" name="update" value="Update" class="button update-button">
+        <input type="submit" name="delete" value="Delete" class="button delete-button">
     </form>
+    <button class="button add-field-button" onclick="addField()">Add Field</button>
 </div>
 
 <div class="table-container">
     <h2>Politicians List</h2>
     <table>
         <tr>
-            <th>ID</th>
-            <th>Name</th>
-            <th>Town</th>
-            <th>State</th>
-            <th>Distance</th>
-            <th>Title</th>
-            <th>Link</th>
+            <?php foreach ($columns as $column): ?>
+            <th><?php echo ucfirst($column); ?></th>
+            <?php endforeach; ?>
             <th>Actions</th>
         </tr>
         <?php foreach ($politicians as $politician): ?>
         <tr>
-            <td><?php echo $politician['id']; ?></td>
-            <td><?php echo $politician['name']; ?></td>
-            <td><?php echo $politician['town']; ?></td>
-            <td><?php echo $politician['state']; ?></td>
-            <td><?php echo $politician['distance']; ?></td>
-            <td><?php echo $politician['title']; ?></td>
-            <td><?php echo $politician['link']; ?></td>
+            <?php foreach ($columns as $column): ?>
+            <td><?php echo $politician[$column]; ?></td>
+            <?php endforeach; ?>
             <td>
-                <button class="button" onclick="editRecord('<?php echo $politician['id']; ?>', '<?php echo $politician['name']; ?>', '<?php echo $politician['town']; ?>', '<?php echo $politician['state']; ?>', '<?php echo $politician['distance']; ?>', '<?php echo $politician['title']; ?>', '<?php echo $politician['link']; ?>')">Edit</button>
-                <form method="POST" style="display:inline-block;">
+                <button class="button" onclick="editRecord(
+                    '<?php echo $politician['id']; ?>',
+                    '<?php echo $politician['name']; ?>',
+                    '<?php echo $politician['town']; ?>',
+                    '<?php echo $politician['state']; ?>',
+                    '<?php echo $politician['distance']; ?>',
+                    '<?php echo $politician['title']; ?>',
+                    '<?php echo $politician['link']; ?>'
+                    <?php foreach ($columns as $column): ?>
+                    <?php if ($column != 'id' && $column != 'name' && $column != 'town' && $column != 'state' && $column != 'distance' && $column != 'title' && $column != 'link'): ?>
+                    , '<?php echo $politician[$column]; ?>'
+                    <?php endif; ?>
+                    <?php endforeach; ?>
+                )">Edit</button>
+                <form method="POST" style="display:inline;">
                     <input type="hidden" name="id" value="<?php echo $politician['id']; ?>">
-                    <input type="submit" name="delete" value="Delete" class="button">
+                    <input type="submit" name="delete" value="Delete" class="button delete-button">
                 </form>
             </td>
         </tr>
