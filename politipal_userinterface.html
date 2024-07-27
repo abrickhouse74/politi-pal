@@ -3,15 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Search for Politicians</title>
+    <title>Welcome to Politipal!</title>
     <style>
+        /* Body styling */
         body {
             font-family: Arial, sans-serif;
-            margin: 20px;
+            margin: 0; /* Remove default margin */
+            background-color: beige;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
         }
+        /* Form container styling */
         .form-container {
             max-width: 400px;
-            margin: auto;
+            text-align: center;
         }
         .form-group {
             margin-bottom: 15px;
@@ -29,6 +36,7 @@
             margin-top: 20px;
             font-weight: bold;
         }
+        /* Circle button container styling */
         .circle-button-container {
             text-align: center;
             margin-top: 20px;
@@ -38,7 +46,7 @@
             margin: 0 auto;
             background-size: cover;
             background-position: center;
-            background-image: none; /* Hide image initially */
+            border: 1px solid red; /* Add border for visual debugging */
         }
         .circle-button {
             width: 100px;
@@ -64,7 +72,6 @@
             height: 40px;
             border-radius: 50%;
             cursor: pointer;
-            background-color: blue;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -79,8 +86,7 @@
             font-size: 12px;
             text-align: center;
             width: 100%;
-            color: black; /* Set text color to solid black */
-            text-indent: 20px; /* Indent the text */
+            color: black;
         }
         .town-input {
             width: 80px;
@@ -122,20 +128,41 @@
             left: 50%;
             transform: translateX(-50%);
         }
+        .spinner {
+            display: none;
+            border: 8px solid #f3f3f3;
+            border-top: 8px solid blue;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 2s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .error {
+            color: red;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
 
 <div class="form-container">
     <h1>Search for Politicians</h1>
-    <form id="searchForm" method="POST" action="search.php">
+    <!-- Search form -->
+    <form id="searchForm" method="POST">
         <div class="form-group">
             <label for="generalSearch">General Search:</label>
             <input type="text" id="generalSearch" name="generalSearch" placeholder="Enter politician name">
         </div>
         <input type="submit" value="Search">
     </form>
-    <div id="result"></div>
+    <div id="result"></div> <!-- Result container -->
+    <div class="spinner" id="spinner"></div> <!-- Spinner -->
+    <div id="error" class="error"></div> <!-- Error message -->
     <div class="circle-button-container" id="circleContainer">
         <div class="circle-button" id="circleButton">
             <input type="text" id="circleTownInput" class="town-input" placeholder="Town">
@@ -145,20 +172,24 @@
 </div>
 
 <script>
-    // Form validation and AJAX submission
+    // Handle search form submission
     document.getElementById('searchForm').addEventListener('submit', function(event) {
-        event.preventDefault();
+        event.preventDefault(); // Prevent form submission
         const searchInput = document.getElementById('generalSearch').value;
         if (!searchInput) {
-            alert('Please enter a name to search.');
+            alert('Please enter a name to search.'); // Alert if input is empty
             return;
         }
+
+        document.getElementById('spinner').style.display = 'block'; // Show spinner
+        document.getElementById('error').textContent = ''; // Clear error message
+
         fetch('search.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: `generalSearch=${encodeURIComponent(searchInput)}`
+            body: `generalSearch=${encodeURIComponent(searchInput)}` // Send search input
         })
-        .then(response => response.json())
+        .then(response => response.json()) // Parse JSON response
         .then(data => {
             let resultHTML = '';
             if (data.length > 0) {
@@ -170,92 +201,150 @@
             } else {
                 resultHTML = 'No results found.';
             }
-            document.getElementById('result').innerHTML = resultHTML;
+            document.getElementById('result').innerHTML = resultHTML; // Display results
+        })
+        .catch(error => {
+            document.getElementById('error').textContent = 'An error occurred. Please try again later.';
+        })
+        .finally(() => {
+            document.getElementById('spinner').style.display = 'none'; // Hide spinner
         });
     });
 
-    let iteration = 0; // Track the number of iterations (local or state politicians displayed)
+    //-----
+    // Initialize variables and add event listeners
+    let iteration = 0; // Track iteration for different politician levels
     const innerSubmit = document.getElementById('innerSubmit');
     const container = document.getElementById('circleContainer');
     const townInput = document.getElementById('circleTownInput');
 
-    // Reset circles when a new town is input
+    // Fetch valid towns from server
+    let validTowns = [];
+    fetch('search.php?fetchTowns=true')
+        .then(response => response.json())
+        .then(data => {
+            validTowns = data; // Store valid towns
+        });
+
+    // Handle town input changes
     townInput.addEventListener('input', function() {
-        iteration = 0;
-        clearCircles();
+        iteration = 0; // Reset iteration
+        clearCircles(); // Clear existing circles
+        innerSubmit.textContent = 'Submit'; // Reset button text
     });
 
+    // Handle submit button click
     innerSubmit.addEventListener('click', function(event) {
         event.preventDefault();
         const town = townInput.value;
         if (!town) {
-            alert('Please enter a town.');
+            alert('Please enter a town.'); // Alert if town is empty
             return;
         }
+        if (!validTowns.includes(town)) {
+            alert('Invalid town. Please enter a valid town name.'); // Alert if town is invalid
+            return;
+        }
+
+        document.getElementById('spinner').style.display = 'block'; // Show spinner
+        document.getElementById('error').textContent = ''; // Clear error message
+
         fetch(`search.php?town=${encodeURIComponent(town)}`)
         .then(response => response.json())
         .then(data => {
-            clearCircles(); // Clear previous circles before generating new ones
+            console.log('Data fetched:', data); // Log fetched data
+            clearCircles(); // Clear existing circles
             if (iteration === 0) {
                 container.style.backgroundImage = "url('https://www.google.com/maps/vt/data=zWcFu5KJz-IYT2DdDP-3ndx2h9lI0fjL3wug42qrkZIEbf3pEr8xIrJOtvjXAGu8yrV30CGdsZrGPjHtaPSke2kJgobRsRtMkQ8xNq2NKSJ2RhpL0XUhn4wT9QazjUj3rIslSMWoayORlgtbF8j5GnicHtQAAXA4miBlbXD3HCKlRxfAEqHlu5mzk-VVD1oMZQDtZOaYakHf6T7PuvdPLQ534Jq10a3b3pTD8dwBMKujtQ0Qx5Rye7EojYm4ZSTkFSjHi79nR6VOIuBc')";
-                generateCircles(data.local);
+                generateCircles(data.local, 'local'); // Generate local circles
                 iteration++;
+                innerSubmit.textContent = 'State'; // Update button text
             } else if (iteration === 1) {
+                clearCircles(); // Clear existing circles
                 container.style.backgroundImage = "url('https://upload.wikimedia.org/wikipedia/commons/thumb/3/35/Map_of_Pennsylvania_highlighting_Centre_County.svg/1200px-Map_of_Pennsylvania_highlighting_Centre_County.svg.png')";
-                generateCircles(data.state);
+                generateCircles(data.state, 'state'); // Generate state circles
                 iteration++;
+                innerSubmit.textContent = 'Federal'; // Update button text
+            } else if (iteration === 2) {
+                clearCircles(); // Clear existing circles
+                container.style.backgroundImage = "url('https://upload.wikimedia.org/wikipedia/commons/thumb/7/78/Washington%2C_D.C._locator_map.svg/750px-Washington%2C_D.C._locator_map.svg.png?20110723032329')";
+                generateCircles(data.federal, 'federal'); // Generate federal circles
+                iteration = 0; // Reset iteration
+                innerSubmit.textContent = 'Local'; // Reset button text
             }
+        })
+        .catch(error => {
+            console.error('Error fetching data:', error); // Log error
+            document.getElementById('error').textContent = 'An error occurred. Please try again later.';
+        })
+        .finally(() => {
+            document.getElementById('spinner').style.display = 'none'; // Hide spinner
         });
     });
 
+    //-----
+    // Utility functions
+
+    // Clear all small circles and existing speech bubbles
     function clearCircles() {
-        while (container.firstChild && container.firstChild !== document.getElementById('circleButton')) {
-            container.removeChild(container.firstChild);
-        }
+        const circles = document.querySelectorAll('.small-circle');
+        circles.forEach(circle => circle.remove());
+        const existingBubble = document.querySelector('.speech-bubble');
+        if (existingBubble) existingBubble.remove();
     }
 
-    function generateCircles(politicians) {
+    // Generate circles for each politician
+    function generateCircles(politicians, level) {
         const radius = 200; // Radius for circular positioning
-        const centerX = container.offsetWidth / 2;
-        const centerY = container.offsetHeight / 2;
+        const centerX = container.offsetWidth / 2; // Center X coordinate
+        const centerY = container.offsetHeight / 2; // Center Y coordinate
+
+        if (politicians.length === 0) {
+            console.warn(`No politicians found for level: ${level}`); // Warn if no politicians
+        }
 
         politicians.forEach((politician, index) => {
-            const angle = (index / politicians.length) * 2 * Math.PI;
-            const x = centerX + radius * Math.cos(angle) - 20; // Adjust for circle size
-            const y = centerY + radius * Math.sin(angle) - 20;
+            const angle = (index / politicians.length) * 2 * Math.PI; // Calculate angle
+            const x = centerX + radius * Math.cos(angle) - 20; // Calculate X coordinate
+            const y = centerY + radius * Math.sin(angle) - 20; // Calculate Y coordinate
 
-            const circle = document.createElement('div');
-            circle.className = 'small-circle';
-            circle.style.left = `${x}px`;
-            circle.style.top = `${y}px`;
-            circle.dataset.id = politician.id; // Store the ID for later use
+            const circle = document.createElement('div'); // Create circle
+            circle.className = 'small-circle'; // Set class
+            circle.style.left = `${x}px`; // Set left position
+            circle.style.top = `${y}px`; // Set top position
+            circle.dataset.id = politician.id; // Store politician ID
+            circle.style.backgroundColor = politician.party === 'Democrat' ? 'blue' : (politician.party === 'Republican' ? 'red' : 'gray'); // Set background color based on party
 
             circle.addEventListener('click', function() {
-                fetchPoliticianDetails(politician.id, circle);
+                fetchPoliticianDetails(politician.id, circle); // Fetch details on click
             });
 
-            const nameElement = document.createElement('div');
-            nameElement.className = 'politician-name';
-            nameElement.textContent = politician.name;
-            circle.appendChild(nameElement);
+            const nameElement = document.createElement('div'); // Create name element
+            nameElement.className = 'politician-name'; // Set class
+            nameElement.textContent = politician.name; // Set text content
+            circle.appendChild(nameElement); // Append name to circle
 
-            container.appendChild(circle);
+            container.appendChild(circle); // Append circle to container
         });
     }
 
+    // Fetch and display politician details in a speech bubble
     function fetchPoliticianDetails(id, circle) {
+        document.getElementById('spinner').style.display = 'block'; // Show spinner
+        document.getElementById('error').textContent = ''; // Clear error message
+
         fetch('search.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: `circleId=${id}`
+            body: `circleId=${id}` // Send politician ID
         })
         .then(response => response.json())
         .then(data => {
             const existingBubble = document.querySelector('.speech-bubble');
-            if (existingBubble) existingBubble.remove();
+            if (existingBubble) existingBubble.remove(); // Remove existing bubble
 
-            const bubble = document.createElement('div');
-            bubble.className = 'speech-bubble';
+            const bubble = document.createElement('div'); // Create bubble
+            bubble.className = 'speech-bubble'; // Set class
 
             if (data.length > 0) {
                 data.forEach(politician => {
@@ -266,16 +355,22 @@
                         Distance: ${politician.distance}<br>
                         Title: ${politician.title}<br>
                         Links: ${politician.link}<br>
-                    `;
+                    `; // Populate bubble with details
                 });
             } else {
-                bubble.innerHTML = 'No results found.';
+                bubble.innerHTML = 'No results found.'; // No results message
             }
 
-            document.body.appendChild(bubble);
+            document.body.appendChild(bubble); // Append bubble to body
             const rect = circle.getBoundingClientRect();
-            bubble.style.left = `${rect.left + window.scrollX}px`;
-            bubble.style.top = `${rect.top + window.scrollY - bubble.offsetHeight - 10}px`;
+            bubble.style.left = `${rect.left + window.scrollX}px`; // Position bubble
+            bubble.style.top = `${rect.top + window.scrollY - bubble.offsetHeight - 10}px`; // Position bubble
+        })
+        .catch(error => {
+            document.getElementById('error').textContent = 'An error occurred. Please try again later.'; // Error message
+        })
+        .finally(() => {
+            document.getElementById('spinner').style.display = 'none'; // Hide spinner
         });
     }
 </script>

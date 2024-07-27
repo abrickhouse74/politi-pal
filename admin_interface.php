@@ -275,20 +275,20 @@ $conn->close();
         <?php foreach ($politicians as $politician): ?>
         <tr>
             <?php foreach ($columns as $column): ?>
-            <td><?php echo $politician[$column]; ?></td>
+            <td><?php echo htmlspecialchars($politician[$column]); ?></td>
             <?php endforeach; ?>
             <td>
                 <button class="button" onclick="editRecord(
-                    '<?php echo $politician['id']; ?>',
-                    '<?php echo $politician['name']; ?>',
-                    '<?php echo $politician['town']; ?>',
-                    '<?php echo $politician['state']; ?>',
-                    '<?php echo $politician['distance']; ?>',
-                    '<?php echo $politician['title']; ?>',
-                    '<?php echo $politician['link']; ?>'
+                    '<?php echo htmlspecialchars($politician['id']); ?>',
+                    '<?php echo htmlspecialchars($politician['name']); ?>',
+                    '<?php echo htmlspecialchars($politician['town']); ?>',
+                    '<?php echo htmlspecialchars($politician['state']); ?>',
+                    '<?php echo htmlspecialchars($politician['distance']); ?>',
+                    '<?php echo htmlspecialchars($politician['title']); ?>',
+                    '<?php echo htmlspecialchars($politician['link']); ?>'
                     <?php foreach ($columns as $column): ?>
                     <?php if ($column != 'id' && $column != 'name' && $column != 'town' && $column != 'state' && $column != 'distance' && $column != 'title' && $column != 'link'): ?>
-                    , '<?php echo $politician[$column]; ?>'
+                    , '<?php echo htmlspecialchars($politician[$column]); ?>'
                     <?php endif; ?>
                     <?php endforeach; ?>
                 )">Edit</button>
