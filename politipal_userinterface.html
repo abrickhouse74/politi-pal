@@ -5,23 +5,40 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Welcome to Politipal!</title>
     <style>
+        /* CSS Reset */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
         /* Body styling */
         body {
             font-family: Arial, sans-serif;
-            margin: 0; /* Remove default margin */
             background-color: beige;
             display: flex;
-            justify-content: center;
+            flex-direction: column;
             align-items: center;
+            justify-content: flex-start;
             height: 100vh;
+            padding: 20px;
+        }
+        /* General search container styling */
+        .general-search-container {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
         }
         /* Form container styling */
         .form-container {
             max-width: 400px;
+            width: 100%;
             text-align: center;
+            flex: 1 1 auto; /* Allow container to grow and shrink */
         }
         .form-group {
             margin-bottom: 15px;
+            position: relative;
         }
         label {
             display: block;
@@ -30,23 +47,38 @@
         input[type="text"], input[type="submit"] {
             width: 100%;
             padding: 10px;
-            box-sizing: border-box;
         }
         #result {
             margin-top: 20px;
             font-weight: bold;
         }
+        .dropdown-list {
+            position: absolute;
+            width: 100%;
+            background-color: white;
+            border: 1px solid #ccc;
+            max-height: 150px;
+            overflow-y: auto;
+            z-index: 1000;
+            box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .dropdown-item {
+            padding: 10px;
+            cursor: pointer;
+        }
+        .dropdown-item:hover {
+            background-color: #f0f0f0;
+        }
         /* Circle button container styling */
         .circle-button-container {
             text-align: center;
-            margin-top: 20px;
             position: relative;
-            width: 600px;
-            height: 600px;
-            margin: 0 auto;
+            width: 400px;
+            height: 400px;
             background-size: cover;
             background-position: center;
             border: 1px solid red; /* Add border for visual debugging */
+            flex: 1 1 auto; /* Allow container to grow and shrink */
         }
         .circle-button {
             width: 100px;
@@ -64,7 +96,6 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            z-index: 1;
         }
         .small-circle {
             position: absolute;
@@ -114,7 +145,6 @@
             max-width: 200px;
             font-size: 12px;
             color: #333;
-            z-index: 2;
         }
         .speech-bubble::after {
             content: '';
@@ -150,24 +180,29 @@
 </head>
 <body>
 
-<div class="form-container">
-    <h1>Search for Politicians</h1>
-    <!-- Search form -->
-    <form id="searchForm" method="POST">
-        <div class="form-group">
-            <label for="generalSearch">General Search:</label>
-            <input type="text" id="generalSearch" name="generalSearch" placeholder="Enter politician name">
-        </div>
-        <input type="submit" value="Search">
-    </form>
-    <div id="result"></div> <!-- Result container -->
-    <div class="spinner" id="spinner"></div> <!-- Spinner -->
-    <div id="error" class="error"></div> <!-- Error message -->
-    <div class="circle-button-container" id="circleContainer">
-        <div class="circle-button" id="circleButton">
-            <input type="text" id="circleTownInput" class="town-input" placeholder="Town">
-            <button class="inner-button" id="innerSubmit">Submit</button>
-        </div>
+<!-- Replace the existing "Search for Politicians" heading with the image -->
+<div class="general-search-container">
+    <div class="form-container">
+        <img src="images/politipal_banner.png" alt="Politipal Banner" style="width: 100%; max-width: 400px;">
+        <!-- Search form -->
+        <form id="searchForm" method="POST">
+            <div class="form-group">
+                <label for="generalSearch">General Search:</label>
+                <input type="text" id="generalSearch" name="generalSearch" placeholder="Enter politician name">
+                <div id="dropdown" class="dropdown-list"></div>
+            </div>
+            <input type="submit" value="Search">
+        </form>
+        <div id="result"></div> <!-- Result container -->
+        <div class="spinner" id="spinner"></div> <!-- Spinner -->
+        <div id="error" class="error"></div> <!-- Error message -->
+    </div>
+</div>
+
+<div class="circle-button-container" id="circleContainer">
+    <div class="circle-button" id="circleButton">
+        <input type="text" id="circleTownInput" class="town-input" placeholder="Town">
+        <button class="inner-button" id="innerSubmit">Submit</button>
     </div>
 </div>
 
@@ -183,6 +218,7 @@
 
         document.getElementById('spinner').style.display = 'block'; // Show spinner
         document.getElementById('error').textContent = ''; // Clear error message
+        document.getElementById('dropdown').style.display = 'none'; // Hide dropdown
 
         fetch('search.php', {
             method: 'POST',
@@ -191,17 +227,16 @@
         })
         .then(response => response.json()) // Parse JSON response
         .then(data => {
-            let resultHTML = '';
             if (data.length > 0) {
-                resultHTML = '<ul>';
+                let resultHTML = '<ul>';
                 data.forEach(politician => {
                     resultHTML += `<li>Name: ${politician.name} - Town: ${politician.town} - State: ${politician.state} - Links: ${politician.link}</li>`;
                 });
                 resultHTML += '</ul>';
+                document.getElementById('result').innerHTML = resultHTML; // Display results
             } else {
-                resultHTML = 'No results found.';
+                document.getElementById('result').textContent = 'No results found.'; // Display no results message
             }
-            document.getElementById('result').innerHTML = resultHTML; // Display results
         })
         .catch(error => {
             document.getElementById('error').textContent = 'An error occurred. Please try again later.';
@@ -211,7 +246,44 @@
         });
     });
 
-    //-----
+    // Handle input for general search to display dropdown suggestions
+    document.getElementById('generalSearch').addEventListener('input', function() {
+        const searchInput = document.getElementById('generalSearch').value;
+        if (!searchInput) {
+            document.getElementById('dropdown').style.display = 'none'; // Hide dropdown if input is empty
+            return;
+        }
+
+        fetch('search.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `generalSearch=${encodeURIComponent(searchInput)}` // Send search input
+        })
+        .then(response => response.json()) // Parse JSON response
+        .then(data => {
+            const dropdown = document.getElementById('dropdown');
+            dropdown.innerHTML = ''; // Clear previous results
+            if (data.length > 0) {
+                data.forEach(politician => {
+                    const item = document.createElement('div');
+                    item.className = 'dropdown-item';
+                    item.textContent = politician.name;
+                    item.addEventListener('click', function() {
+                        document.getElementById('generalSearch').value = politician.name;
+                        dropdown.style.display = 'none'; // Hide dropdown
+                    });
+                    dropdown.appendChild(item);
+                });
+                dropdown.style.display = 'block'; // Show dropdown
+            } else {
+                dropdown.style.display = 'none'; // Hide dropdown if no results
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching suggestions:', error);
+        });
+    });
+
     // Initialize variables and add event listeners
     let iteration = 0; // Track iteration for different politician levels
     const innerSubmit = document.getElementById('innerSubmit');
@@ -282,7 +354,6 @@
         });
     });
 
-    //-----
     // Utility functions
 
     // Clear all small circles and existing speech bubbles
@@ -354,8 +425,8 @@
                         State: ${politician.state}<br>
                         Distance: ${politician.distance}<br>
                         Title: ${politician.title}<br>
-                        Links: ${politician.link}<br>
-                    `; // Populate bubble with details
+                        <button onclick="window.open('${politician.link}', '_blank')">Visit Website</button><br>
+                    `; // Populate bubble with details and hyperlink button
                 });
             } else {
                 bubble.innerHTML = 'No results found.'; // No results message
